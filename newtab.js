@@ -67,6 +67,8 @@ async function saveTab(tab) {
     title: tab.title || tab.url,
     favIconUrl: tabFavicon(tab),
     savedAt: Date.now(),
+    pinned: false,
+    pinnedAt: null,
   };
   await persistSaved([...savedTabs, item]);
   renderSaved();
@@ -77,6 +79,16 @@ async function removeSaved(id) {
   await persistSaved(savedTabs.filter((t) => t.id !== id));
   renderSaved();
   renderOpen();
+}
+
+async function togglePin(id) {
+  const next = savedTabs.map((t) =>
+    t.id === id
+      ? { ...t, pinned: !t.pinned, pinnedAt: !t.pinned ? Date.now() : null }
+      : t
+  );
+  await persistSaved(next);
+  renderSaved();
 }
 
 // ---------- render ----------
@@ -120,14 +132,27 @@ function renderOpen() {
 function renderSaved() {
   const frag = document.createDocumentFragment();
 
-  // newest first
-  const items = [...savedTabs].sort((a, b) => b.savedAt - a.savedAt);
+  // Pinned first (newest pin on top), then unpinned (newest save on top).
+  const pinned = savedTabs
+    .filter((t) => t.pinned)
+    .sort((a, b) => (b.pinnedAt || 0) - (a.pinnedAt || 0));
+  const rest = savedTabs
+    .filter((t) => !t.pinned)
+    .sort((a, b) => b.savedAt - a.savedAt);
+  const items = [...pinned, ...rest];
 
   for (const item of items) {
     const node = els.tplSaved.content.firstElementChild.cloneNode(true);
     const icon = node.querySelector(".tab-favicon");
     const link = node.querySelector(".tab-link");
-    const btn = node.querySelector(".btn-remove");
+    const pinBtn = node.querySelector(".btn-pin");
+    const removeBtn = node.querySelector(".btn-remove");
+
+    if (item.pinned) {
+      node.classList.add("is-pinned");
+      pinBtn.title = "Открепить";
+      pinBtn.setAttribute("aria-label", "Открепить");
+    }
 
     icon.src = item.favIconUrl || faviconForUrl(item.url);
     icon.onerror = () => {
@@ -137,7 +162,12 @@ function renderSaved() {
     link.title = `${item.title || ""}\n${item.url}`;
     link.href = item.url;
 
-    btn.addEventListener("click", (e) => {
+    pinBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      togglePin(item.id);
+    });
+
+    removeBtn.addEventListener("click", (e) => {
       e.preventDefault();
       removeSaved(item.id);
     });

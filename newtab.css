@@ -162,6 +162,20 @@ a.tab-link:hover {
   cursor: default;
 }
 
+.tab-item.is-pinned .btn-pin {
+  opacity: 1;
+  color: var(--accent);
+  transform: rotate(-45deg);
+}
+
+.tab-item.is-pinned .btn-pin:hover {
+  color: var(--accent);
+}
+
+.btn-pin .icon-pin {
+  display: block;
+}
+
 /* ---------- Main ---------- */
 .main {
   flex: 1 1 auto;
