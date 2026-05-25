@@ -249,6 +249,19 @@ function clearDropMarkers() {
     .forEach((el) => el.classList.remove("drop-above", "drop-below"));
 }
 
+// Picks the insertion side and flips it when the natural side would be a
+// no-op (i.e., src is already the immediate neighbor on that side of target).
+// Keeps the visual indicator and the actual drop result consistent.
+function effectiveDropPosition(srcId, targetEl, clientY) {
+  const rect = targetEl.getBoundingClientRect();
+  let isAbove = clientY - rect.top < rect.height / 2;
+  const srcIdx = savedTabs.findIndex((t) => t.id === srcId);
+  const targetIdx = savedTabs.findIndex((t) => t.id === targetEl.dataset.id);
+  if (srcIdx === targetIdx - 1 && isAbove) isAbove = false;
+  else if (srcIdx === targetIdx + 1 && !isAbove) isAbove = true;
+  return isAbove ? "before" : "after";
+}
+
 function onSavedDragStart(e) {
   dragSrcId = this.dataset.id;
   this.classList.add("is-dragging");
@@ -266,10 +279,9 @@ function onSavedDragOver(e) {
   e.preventDefault();
   if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
 
-  const rect = this.getBoundingClientRect();
-  const isAbove = e.clientY - rect.top < rect.height / 2;
-  this.classList.toggle("drop-above", isAbove);
-  this.classList.toggle("drop-below", !isAbove);
+  const pos = effectiveDropPosition(dragSrcId, this, e.clientY);
+  this.classList.toggle("drop-above", pos === "before");
+  this.classList.toggle("drop-below", pos === "after");
 }
 
 function onSavedDragLeave() {
@@ -283,10 +295,9 @@ function onSavedDrop(e) {
   if (!srcEl || srcEl.dataset.pinned !== this.dataset.pinned) return;
 
   e.preventDefault();
-  const rect = this.getBoundingClientRect();
-  const isAbove = e.clientY - rect.top < rect.height / 2;
+  const pos = effectiveDropPosition(dragSrcId, this, e.clientY);
   this.classList.remove("drop-above", "drop-below");
-  reorderSaved(dragSrcId, targetId, isAbove ? "before" : "after");
+  reorderSaved(dragSrcId, targetId, pos);
 }
 
 function onSavedDragEnd() {
