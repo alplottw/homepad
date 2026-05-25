@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Новая вкладка</title>
+    <link rel="stylesheet" href="newtab.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <section class="sidebar-section">
+          <h2 class="sidebar-title">Открытые вкладки</h2>
+          <ul id="open-tabs" class="tab-list"></ul>
+        </section>
+        <section class="sidebar-section">
+          <h2 class="sidebar-title">Посмотреть позже</h2>
+          <ul id="saved-tabs" class="tab-list"></ul>
+        </section>
+      </aside>
+
+      <main class="main">
+        <div class="main-inner">
+          <div class="logo" aria-label="Google">
+            <span class="logo-g1">G</span><span class="logo-o1">o</span><span class="logo-o2">o</span><span class="logo-g2">g</span><span class="logo-l">l</span><span class="logo-e">e</span>
+          </div>
+          <form class="search" action="https://www.google.com/search" method="GET" autocomplete="off">
+            <span class="search-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20">
+                <path fill="#9aa0a6" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+              </svg>
+            </span>
+            <input
+              class="search-input"
+              type="text"
+              name="q"
+              autocomplete="off"
+              autofocus
+              spellcheck="false"
+              aria-label="Поиск Google"
+            />
+          </form>
+          <div id="top-sites" class="top-sites-grid"></div>
+        </div>
+      </main>
+    </div>
+
+    <template id="tpl-open-tab">
+      <li class="tab-item">
+        <img class="tab-favicon" alt="" />
+        <span class="tab-title"></span>
+        <button class="tab-action btn-save" type="button" title="Сохранить на потом" aria-label="Сохранить на потом">+</button>
+      </li>
+    </template>
+
+    <template id="tpl-saved-tab">
+      <li class="tab-item">
+        <img class="tab-favicon" alt="" />
+        <a class="tab-title tab-link" target="_blank" rel="noopener noreferrer"></a>
+        <button class="tab-action btn-remove" type="button" title="Удалить" aria-label="Удалить">×</button>
+      </li>
+    </template>
+
+    <template id="tpl-top-site">
+      <a class="top-site" target="_self" rel="noopener noreferrer">
+        <div class="top-site-icon-wrap">
+          <img class="top-site-icon" alt="" />
+        </div>
+        <div class="top-site-title"></div>
+      </a>
+    </template>
+
+    <script src="newtab.js"></script>
+  </body>
+</html>
