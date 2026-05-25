@@ -176,6 +176,29 @@ a.tab-link:hover {
   display: block;
 }
 
+/* ----- Drag & drop for saved tabs ----- */
+#saved-tabs .tab-item {
+  cursor: grab;
+}
+
+#saved-tabs .tab-item .tab-link,
+#saved-tabs .tab-item .tab-action {
+  cursor: pointer;
+}
+
+#saved-tabs .tab-item.is-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+#saved-tabs .tab-item.drop-above {
+  box-shadow: inset 0 2px 0 0 var(--accent);
+}
+
+#saved-tabs .tab-item.drop-below {
+  box-shadow: inset 0 -2px 0 0 var(--accent);
+}
+
 /* ---------- Main ---------- */
 .main {
   flex: 1 1 auto;

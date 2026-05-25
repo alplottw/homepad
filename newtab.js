@@ -70,7 +70,18 @@ async function saveTab(tab) {
     pinned: false,
     pinnedAt: null,
   };
-  await persistSaved([...savedTabs, item]);
+  // Insert at the top of the unpinned section (right after all pinned items).
+  const lastPinIdx = savedTabs.reduce(
+    (acc, t, i) => (t.pinned ? i : acc),
+    -1
+  );
+  const insertAt = lastPinIdx + 1;
+  const next = [
+    ...savedTabs.slice(0, insertAt),
+    item,
+    ...savedTabs.slice(insertAt),
+  ];
+  await persistSaved(next);
   renderSaved();
   renderOpen();
 }
@@ -82,11 +93,52 @@ async function removeSaved(id) {
 }
 
 async function togglePin(id) {
-  const next = savedTabs.map((t) =>
-    t.id === id
-      ? { ...t, pinned: !t.pinned, pinnedAt: !t.pinned ? Date.now() : null }
-      : t
-  );
+  const item = savedTabs.find((t) => t.id === id);
+  if (!item) return;
+  const updated = {
+    ...item,
+    pinned: !item.pinned,
+    pinnedAt: !item.pinned ? Date.now() : null,
+  };
+  const without = savedTabs.filter((t) => t.id !== id);
+
+  let next;
+  if (updated.pinned) {
+    // Move to top of pinned section.
+    next = [updated, ...without];
+  } else {
+    // Move to top of unpinned section (right after all remaining pinned).
+    const lastPinIdx = without.reduce(
+      (acc, t, i) => (t.pinned ? i : acc),
+      -1
+    );
+    const insertAt = lastPinIdx + 1;
+    next = [
+      ...without.slice(0, insertAt),
+      updated,
+      ...without.slice(insertAt),
+    ];
+  }
+  await persistSaved(next);
+  renderSaved();
+}
+
+async function reorderSaved(srcId, targetId, position) {
+  if (srcId === targetId) return;
+  const src = savedTabs.find((t) => t.id === srcId);
+  const target = savedTabs.find((t) => t.id === targetId);
+  if (!src || !target) return;
+  if (src.pinned !== target.pinned) return; // only within the same group
+
+  const without = savedTabs.filter((t) => t.id !== srcId);
+  const targetIdx = without.findIndex((t) => t.id === targetId);
+  if (targetIdx === -1) return;
+  const insertIdx = position === "before" ? targetIdx : targetIdx + 1;
+  const next = [
+    ...without.slice(0, insertIdx),
+    src,
+    ...without.slice(insertIdx),
+  ];
   await persistSaved(next);
   renderSaved();
 }
@@ -132,13 +184,9 @@ function renderOpen() {
 function renderSaved() {
   const frag = document.createDocumentFragment();
 
-  // Pinned first (newest pin on top), then unpinned (newest save on top).
-  const pinned = savedTabs
-    .filter((t) => t.pinned)
-    .sort((a, b) => (b.pinnedAt || 0) - (a.pinnedAt || 0));
-  const rest = savedTabs
-    .filter((t) => !t.pinned)
-    .sort((a, b) => b.savedAt - a.savedAt);
+  // Array order is the source of truth; just group pinned above the rest.
+  const pinned = savedTabs.filter((t) => t.pinned);
+  const rest = savedTabs.filter((t) => !t.pinned);
   const items = [...pinned, ...rest];
 
   for (const item of items) {
@@ -147,6 +195,10 @@ function renderSaved() {
     const link = node.querySelector(".tab-link");
     const pinBtn = node.querySelector(".btn-pin");
     const removeBtn = node.querySelector(".btn-remove");
+
+    node.dataset.id = item.id;
+    node.dataset.pinned = item.pinned ? "1" : "0";
+    node.draggable = true;
 
     if (item.pinned) {
       node.classList.add("is-pinned");
@@ -172,10 +224,72 @@ function renderSaved() {
       removeSaved(item.id);
     });
 
+    node.addEventListener("dragstart", onSavedDragStart);
+    node.addEventListener("dragover", onSavedDragOver);
+    node.addEventListener("dragleave", onSavedDragLeave);
+    node.addEventListener("drop", onSavedDrop);
+    node.addEventListener("dragend", onSavedDragEnd);
+
     frag.appendChild(node);
   }
 
   els.savedList.replaceChildren(frag);
+}
+
+// ---------- drag & drop ----------
+
+let dragSrcId = null;
+
+function clearDropMarkers() {
+  els.savedList
+    .querySelectorAll(".drop-above, .drop-below")
+    .forEach((el) => el.classList.remove("drop-above", "drop-below"));
+}
+
+function onSavedDragStart(e) {
+  dragSrcId = this.dataset.id;
+  this.classList.add("is-dragging");
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", dragSrcId);
+  }
+}
+
+function onSavedDragOver(e) {
+  if (!dragSrcId || this.dataset.id === dragSrcId) return;
+  const srcEl = els.savedList.querySelector(`[data-id="${CSS.escape(dragSrcId)}"]`);
+  if (!srcEl || srcEl.dataset.pinned !== this.dataset.pinned) return;
+
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+
+  const rect = this.getBoundingClientRect();
+  const isAbove = e.clientY - rect.top < rect.height / 2;
+  this.classList.toggle("drop-above", isAbove);
+  this.classList.toggle("drop-below", !isAbove);
+}
+
+function onSavedDragLeave() {
+  this.classList.remove("drop-above", "drop-below");
+}
+
+function onSavedDrop(e) {
+  const targetId = this.dataset.id;
+  if (!dragSrcId || targetId === dragSrcId) return;
+  const srcEl = els.savedList.querySelector(`[data-id="${CSS.escape(dragSrcId)}"]`);
+  if (!srcEl || srcEl.dataset.pinned !== this.dataset.pinned) return;
+
+  e.preventDefault();
+  const rect = this.getBoundingClientRect();
+  const isAbove = e.clientY - rect.top < rect.height / 2;
+  this.classList.remove("drop-above", "drop-below");
+  reorderSaved(dragSrcId, targetId, isAbove ? "before" : "after");
+}
+
+function onSavedDragEnd() {
+  this.classList.remove("is-dragging");
+  clearDropMarkers();
+  dragSrcId = null;
 }
 
 async function renderTopSites() {
