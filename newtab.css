@@ -51,8 +51,8 @@ body {
   padding: 16px 12px 8px;
 }
 
-.sidebar-section + .sidebar-section {
-  border-top: 1px solid var(--border);
+.sidebar-section--open {
+  flex: 0 0 var(--open-section-h, 50%);
 }
 
 .sidebar-title {
@@ -222,6 +222,43 @@ body.is-resizing-sidebar {
 
 body.is-resizing-sidebar * {
   cursor: col-resize !important;
+}
+
+/* ---------- Section resizer (horizontal, inside sidebar) ---------- */
+.section-resizer {
+  flex: 0 0 6px;
+  margin: -3px 0;
+  cursor: row-resize;
+  position: relative;
+  z-index: 1;
+}
+
+.section-resizer::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  margin-top: -0.5px;
+  background: var(--border);
+  transition: background-color 0.15s, height 0.15s, margin-top 0.15s;
+}
+
+.section-resizer:hover::before,
+.section-resizer.is-active::before {
+  background: var(--accent);
+  height: 2px;
+  margin-top: -1px;
+}
+
+body.is-resizing-section {
+  cursor: row-resize;
+  user-select: none;
+}
+
+body.is-resizing-section * {
+  cursor: row-resize !important;
 }
 
 /* ---------- Main ---------- */

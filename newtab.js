@@ -4,6 +4,8 @@ const STORAGE_KEY = "savedTabs";
 const SIDEBAR_WIDTH_KEY = "sidebarWidth";
 const SIDEBAR_MIN_PX = 200;
 const SIDEBAR_MAX_PX = 600;
+const SECTION_SPLIT_KEY = "openSectionHeight";
+const SECTION_MIN_PX = 80;
 const RENDER_DEBOUNCE_MS = 100;
 const NTP_URL = chrome.runtime.getURL("newtab.html");
 
@@ -376,6 +378,58 @@ function initSidebarResizer() {
   });
 }
 
+// ---------- section split (open tabs / saved) ----------
+
+async function loadSectionSplit() {
+  const data = await chrome.storage.local.get(SECTION_SPLIT_KEY);
+  const h = data[SECTION_SPLIT_KEY];
+  if (typeof h === "number" && h >= SECTION_MIN_PX) {
+    document.documentElement.style.setProperty("--open-section-h", `${h}px`);
+  }
+}
+
+function initSectionResizer() {
+  const resizer = document.getElementById("section-resizer");
+  const sidebar = document.querySelector(".sidebar");
+  const openSection = sidebar && sidebar.querySelector(".sidebar-section--open");
+  if (!resizer || !sidebar || !openSection) return;
+
+  let startY = 0;
+  let startH = 0;
+  let maxH = 0;
+
+  function onMove(e) {
+    const delta = e.clientY - startY;
+    const next = Math.max(SECTION_MIN_PX, Math.min(maxH, startH + delta));
+    document.documentElement.style.setProperty("--open-section-h", `${next}px`);
+  }
+
+  function onUp() {
+    resizer.classList.remove("is-active");
+    document.body.classList.remove("is-resizing-section");
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    const finalH = Math.round(openSection.getBoundingClientRect().height);
+    chrome.storage.local.set({ [SECTION_SPLIT_KEY]: finalH });
+  }
+
+  resizer.addEventListener("mousedown", (e) => {
+    startY = e.clientY;
+    startH = openSection.getBoundingClientRect().height;
+    maxH = sidebar.getBoundingClientRect().height - SECTION_MIN_PX;
+    resizer.classList.add("is-active");
+    document.body.classList.add("is-resizing-section");
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    e.preventDefault();
+  });
+
+  resizer.addEventListener("dblclick", () => {
+    document.documentElement.style.removeProperty("--open-section-h");
+    chrome.storage.local.remove(SECTION_SPLIT_KEY);
+  });
+}
+
 async function renderTopSites() {
   let sites = [];
   try {
@@ -435,11 +489,12 @@ function attachListeners() {
 // ---------- init ----------
 
 (async function init() {
-  await Promise.all([loadSaved(), loadSidebarWidth()]);
+  await Promise.all([loadSaved(), loadSidebarWidth(), loadSectionSplit()]);
   openTabsCache = await chrome.tabs.query({});
   renderSaved();
   renderOpen();
   renderTopSites();
   initSidebarResizer();
+  initSectionResizer();
   attachListeners();
 })();

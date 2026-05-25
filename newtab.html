@@ -9,10 +9,17 @@
   <body>
     <div class="app">
       <aside class="sidebar">
-        <section class="sidebar-section">
+        <section class="sidebar-section sidebar-section--open">
           <h2 class="sidebar-title">Открытые вкладки</h2>
           <ul id="open-tabs" class="tab-list"></ul>
         </section>
+        <div
+          class="section-resizer"
+          id="section-resizer"
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="Изменить высоту секций"
+        ></div>
         <section class="sidebar-section">
           <h2 class="sidebar-title">Посмотреть позже</h2>
           <ul id="saved-tabs" class="tab-list"></ul>
