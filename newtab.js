@@ -52,7 +52,20 @@ function isOwnNewTabPage(tab) {
 
 async function loadSaved() {
   const data = await chrome.storage.local.get(STORAGE_KEY);
-  savedTabs = Array.isArray(data[STORAGE_KEY]) ? data[STORAGE_KEY] : [];
+  const raw = Array.isArray(data[STORAGE_KEY]) ? data[STORAGE_KEY] : [];
+  // Backfill pinned/pinnedAt for items saved before pinning was introduced.
+  const migrated = raw.map((t) => ({
+    ...t,
+    pinned: t.pinned === true,
+    pinnedAt: t.pinned === true ? t.pinnedAt ?? null : null,
+  }));
+  const needsWrite = migrated.some(
+    (t, i) => t.pinned !== raw[i].pinned || t.pinnedAt !== raw[i].pinnedAt
+  );
+  savedTabs = migrated;
+  if (needsWrite) {
+    await chrome.storage.local.set({ [STORAGE_KEY]: migrated });
+  }
 }
 
 async function persistSaved(next) {
@@ -131,7 +144,7 @@ async function reorderSaved(srcId, targetId, position) {
   const src = savedTabs.find((t) => t.id === srcId);
   const target = savedTabs.find((t) => t.id === targetId);
   if (!src || !target) return;
-  if (src.pinned !== target.pinned) return; // only within the same group
+  if (!!src.pinned !== !!target.pinned) return; // only within the same group
 
   const without = savedTabs.filter((t) => t.id !== srcId);
   const targetIdx = without.findIndex((t) => t.id === targetId);
