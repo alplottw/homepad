@@ -199,6 +199,31 @@ a.tab-link:hover {
   box-shadow: inset 0 -2px 0 0 var(--accent);
 }
 
+/* ---------- Sidebar resizer ---------- */
+.sidebar-resizer {
+  flex: 0 0 6px;
+  margin-left: -3px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  z-index: 1;
+  transition: background-color 0.15s;
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer.is-active {
+  background: var(--accent);
+}
+
+body.is-resizing-sidebar {
+  cursor: col-resize;
+  user-select: none;
+}
+
+body.is-resizing-sidebar * {
+  cursor: col-resize !important;
+}
+
 /* ---------- Main ---------- */
 .main {
   flex: 1 1 auto;

@@ -1,6 +1,9 @@
 "use strict";
 
 const STORAGE_KEY = "savedTabs";
+const SIDEBAR_WIDTH_KEY = "sidebarWidth";
+const SIDEBAR_MIN_PX = 200;
+const SIDEBAR_MAX_PX = 600;
 const RENDER_DEBOUNCE_MS = 100;
 const NTP_URL = chrome.runtime.getURL("newtab.html");
 
@@ -292,6 +295,63 @@ function onSavedDragEnd() {
   dragSrcId = null;
 }
 
+// ---------- sidebar resize ----------
+
+async function loadSidebarWidth() {
+  const data = await chrome.storage.local.get(SIDEBAR_WIDTH_KEY);
+  const w = data[SIDEBAR_WIDTH_KEY];
+  if (typeof w === "number" && w >= SIDEBAR_MIN_PX && w <= SIDEBAR_MAX_PX) {
+    document.documentElement.style.setProperty("--sidebar-w", `${w}px`);
+  }
+}
+
+function initSidebarResizer() {
+  const resizer = document.getElementById("sidebar-resizer");
+  const sidebar = document.querySelector(".sidebar");
+  if (!resizer || !sidebar) return;
+
+  let startX = 0;
+  let startW = 0;
+  let dragging = false;
+
+  function onMove(e) {
+    if (!dragging) return;
+    const delta = e.clientX - startX;
+    const next = Math.max(
+      SIDEBAR_MIN_PX,
+      Math.min(SIDEBAR_MAX_PX, startW + delta)
+    );
+    document.documentElement.style.setProperty("--sidebar-w", `${next}px`);
+  }
+
+  function onUp() {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove("is-active");
+    document.body.classList.remove("is-resizing-sidebar");
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    const finalW = Math.round(sidebar.getBoundingClientRect().width);
+    chrome.storage.local.set({ [SIDEBAR_WIDTH_KEY]: finalW });
+  }
+
+  resizer.addEventListener("mousedown", (e) => {
+    dragging = true;
+    startX = e.clientX;
+    startW = sidebar.getBoundingClientRect().width;
+    resizer.classList.add("is-active");
+    document.body.classList.add("is-resizing-sidebar");
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    e.preventDefault();
+  });
+
+  resizer.addEventListener("dblclick", () => {
+    document.documentElement.style.removeProperty("--sidebar-w");
+    chrome.storage.local.remove(SIDEBAR_WIDTH_KEY);
+  });
+}
+
 async function renderTopSites() {
   let sites = [];
   try {
@@ -351,10 +411,11 @@ function attachListeners() {
 // ---------- init ----------
 
 (async function init() {
-  await loadSaved();
+  await Promise.all([loadSaved(), loadSidebarWidth()]);
   openTabsCache = await chrome.tabs.query({});
   renderSaved();
   renderOpen();
   renderTopSites();
+  initSidebarResizer();
   attachListeners();
 })();
